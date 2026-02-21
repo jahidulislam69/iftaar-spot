@@ -378,7 +378,7 @@ const FIREBASE_CONFIG = {
 // DB LAYER — auto-switches Firebase ↔ localStorage
 // Set USE_FIREBASE = true after you add your config
 // ═══════════════════════════════════════════════════
-const USE_FIREBASE = FIREBASE_CONFIG.apiKey !== "AIzaSyArjwUXUDdZGlK-k_00OmoVRtI3v-BA1_Q";
+const USE_FIREBASE = FIREBASE_CONFIG.apiKey !== "YOUR_API_KEY" && FIREBASE_CONFIG.apiKey.length > 10;
 let db = null;
 
 function initFirebase(){
