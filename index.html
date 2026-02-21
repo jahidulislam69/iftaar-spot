@@ -1,0 +1,1097 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>ইফতারে ভালো খবর কোই আছে? 🌙</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+Da+2:wght@400;500;600;700;800&family=Noto+Serif+Bengali:wght@400;600;700&family=Hind+Siliguri:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<!-- Firebase v10 modular SDK via compat layer (no bundler needed) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<style>
+:root {
+  --cream: #FBF7EF;
+  --warm-white: #FFFDF8;
+  --orange: #F97316;
+  --orange-deep: #EA580C;
+  --green: #16A34A;
+  --green-light: #22C55E;
+  --red: #DC2626;
+  --gold: #D97706;
+  --gold-light: #FCD34D;
+  --dark: #1C1917;
+  --dark2: #292524;
+  --muted: #78716C;
+  --border: #E7E5E4;
+  --card-bg: #FFFFFF;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body { font-family: 'Hind Siliguri', sans-serif; background: var(--cream); color: var(--dark); min-height: 100vh; overflow-x: hidden; }
+
+/* ===== HERO ===== */
+.hero {
+  background: linear-gradient(150deg, #0A1628 0%, #0F2417 50%, #0A1628 100%);
+  min-height: 100svh;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  text-align: center; padding: 40px 20px 60px; position: relative; overflow: hidden;
+}
+.stars { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+.star { position: absolute; background: white; border-radius: 50%; animation: twinkle var(--dur,3s) var(--delay,0s) ease-in-out infinite; }
+@keyframes twinkle { 0%,100%{opacity:.15;transform:scale(1)} 50%{opacity:.9;transform:scale(1.4)} }
+
+.lantern-row { position: absolute; top: -8px; left: 0; right: 0; display: flex; justify-content: space-around; pointer-events: none; z-index:1; }
+.lantern { font-size: 1.6rem; animation: swing var(--sw,4s) var(--sd,0s) ease-in-out infinite; transform-origin: top center; filter: drop-shadow(0 0 14px rgba(249,115,22,0.7)); }
+@keyframes swing { 0%,100%{transform:rotate(-8deg)} 50%{transform:rotate(8deg)} }
+
+.moon-wrap { position: relative; margin-bottom: 22px; animation: moonRise 1.2s cubic-bezier(.34,1.56,.64,1) both; opacity:0; transform:translateY(30px); }
+@keyframes moonRise { to { opacity:1; transform:translateY(0); } }
+.moon-glow { position:absolute; inset:-25px; border-radius:50%; background:radial-gradient(circle,rgba(253,210,77,.18) 0%,transparent 70%); animation:glow 3s ease-in-out infinite; }
+@keyframes glow { 0%,100%{transform:scale(1);opacity:.7} 50%{transform:scale(1.2);opacity:1} }
+.moon-svg { width:85px; height:85px; filter: drop-shadow(0 0 28px rgba(253,210,77,.5)); }
+
+.hero-eyebrow { font-family:'Baloo Da 2',sans-serif; font-size:.72rem; font-weight:700; letter-spacing:3px; text-transform:uppercase; color:var(--gold-light); margin-bottom:10px; animation:fadeUp .8s .3s both; }
+.hero-title { font-family:'Noto Serif Bengali',serif; font-size:clamp(2rem,6vw,3.4rem); font-weight:700; color:#FFFDF8; line-height:1.25; margin-bottom:8px; animation:fadeUp .8s .5s both; text-shadow:0 2px 24px rgba(0,0,0,.5); }
+.hero-title .hl { color:var(--gold-light); display:inline-block; animation:shimmer 3s ease-in-out infinite; }
+@keyframes shimmer { 0%,100%{filter:brightness(1)} 50%{filter:brightness(1.35) drop-shadow(0 0 10px rgba(253,210,77,.6))} }
+.hero-sub { font-size:clamp(.88rem,2.5vw,1.05rem); color:rgba(255,253,248,.6); margin-bottom:28px; animation:fadeUp .8s .7s both; }
+@keyframes fadeUp { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
+
+.stats-bar { display:flex; gap:10px; justify-content:center; flex-wrap:wrap; margin-bottom:28px; animation:fadeUp .8s .9s both; }
+.stat-pill { display:flex; align-items:center; gap:6px; background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.12); border-radius:30px; padding:8px 16px; backdrop-filter:blur(10px); }
+.stat-pill .icon { font-size:1rem; }
+.stat-pill .val { font-family:'Baloo Da 2',sans-serif; font-weight:800; font-size:.98rem; color:var(--gold-light); }
+.stat-pill .lbl { font-size:.75rem; color:rgba(255,253,248,.55); }
+
+.cdpill { background:rgba(249,115,22,.14); border:1.5px solid rgba(249,115,22,.4); border-radius:30px; padding:10px 24px; display:inline-flex; align-items:center; gap:10px; margin-bottom:32px; animation:fadeUp .8s 1.1s both; }
+.cdlbl { font-size:.76rem; color:rgba(255,253,248,.55); font-family:'Baloo Da 2',sans-serif; }
+.cdtime { font-family:'Baloo Da 2',sans-serif; font-weight:800; font-size:1.28rem; color:var(--orange); font-variant-numeric:tabular-nums; letter-spacing:2px; }
+
+.cta-group { display:flex; flex-direction:column; align-items:center; gap:12px; animation:fadeUp .8s 1.3s both; width:100%; max-width:420px; }
+.hero-search-wrap { width:100%; position:relative; }
+.hero-search { width:100%; padding:15px 20px 15px 50px; background:rgba(255,255,255,.95); border:none; border-radius:50px; font-family:'Hind Siliguri',sans-serif; font-size:.95rem; color:var(--dark); outline:none; box-shadow:0 8px 32px rgba(0,0,0,.35); transition:box-shadow .2s; }
+.hero-search:focus { box-shadow:0 8px 32px rgba(0,0,0,.4),0 0 0 3px rgba(249,115,22,.35); }
+.hero-search-icon { position:absolute; left:18px; top:50%; transform:translateY(-50%); font-size:1.05rem; pointer-events:none; }
+
+.suggestions { position:absolute; top:calc(100% + 8px); left:0; right:0; background:white; border-radius:16px; box-shadow:0 12px 40px rgba(0,0,0,.22); overflow:hidden; z-index:300; max-height:220px; overflow-y:auto; display:none; }
+.suggestions.show { display:block; }
+.sug-item { padding:11px 16px; cursor:pointer; font-size:.87rem; color:var(--dark); display:flex; align-items:center; gap:8px; border-bottom:1px solid var(--border); transition:background .1s; }
+.sug-item:last-child { border-bottom:none; }
+.sug-item:hover { background:var(--cream); }
+.sug-name { font-weight:600; flex:1; }
+.sug-area { font-size:.73rem; color:var(--muted); }
+.sug-badge { font-size:.67rem; padding:2px 8px; border-radius:20px; font-weight:700; }
+.sug-badge.free { background:#DCFCE7; color:var(--green); }
+.sug-badge.paid { background:#FFF7ED; color:var(--orange-deep); }
+.hmatch { color:var(--orange); font-weight:800; }
+
+.explore-btn { width:100%; padding:15px; background:var(--orange); color:white; border:none; border-radius:50px; font-family:'Baloo Da 2',sans-serif; font-weight:800; font-size:1rem; cursor:pointer; box-shadow:0 8px 24px rgba(249,115,22,.4); transition:all .2s; }
+.explore-btn:hover { background:var(--orange-deep); box-shadow:0 12px 30px rgba(249,115,22,.5); transform:translateY(-2px); }
+
+.scroll-hint { position:absolute; bottom:18px; left:50%; transform:translateX(-50%); color:rgba(255,253,248,.35); font-size:.73rem; font-family:'Baloo Da 2',sans-serif; display:flex; flex-direction:column; align-items:center; gap:3px; animation:fadeUp .8s 1.8s both; }
+.arr { font-size:1.1rem; animation:bounce 2s ease-in-out infinite; }
+@keyframes bounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(6px)} }
+
+/* ===== STICKY HEADER ===== */
+.sticky-hdr { position:sticky; top:0; z-index:500; background:rgba(28,25,23,.96); backdrop-filter:blur(14px); border-bottom:1px solid rgba(255,255,255,.07); padding:10px 16px; display:none; }
+.sticky-hdr.on { display:block; }
+.sticky-in { max-width:780px; margin:0 auto; display:flex; align-items:center; gap:10px; }
+.sticky-logo { font-family:'Baloo Da 2',sans-serif; font-weight:800; font-size:.9rem; color:var(--gold-light); white-space:nowrap; flex-shrink:0; }
+.sticky-sw { flex:1; position:relative; }
+.sticky-s { width:100%; padding:9px 16px 9px 38px; background:rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.15); border-radius:30px; font-family:'Hind Siliguri',sans-serif; font-size:.88rem; color:white; outline:none; transition:all .2s; }
+.sticky-s::placeholder { color:rgba(255,255,255,.38); }
+.sticky-s:focus { background:rgba(255,255,255,.15); border-color:var(--orange); }
+.sticky-si { position:absolute; left:12px; top:50%; transform:translateY(-50%); font-size:.88rem; pointer-events:none; }
+.add-sticky { flex-shrink:0; background:var(--orange); color:white; border:none; border-radius:30px; padding:9px 16px; font-family:'Baloo Da 2',sans-serif; font-weight:700; font-size:.82rem; cursor:pointer; transition:all .15s; white-space:nowrap; }
+.add-sticky:hover { background:var(--orange-deep); }
+
+/* ===== MAIN ===== */
+.main { max-width:780px; margin:0 auto; padding:28px 16px 100px; }
+.sec-hdr { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
+.sec-ttl { font-family:'Baloo Da 2',sans-serif; font-weight:800; font-size:1.2rem; color:var(--dark); display:flex; align-items:center; gap:8px; }
+.live { width:8px; height:8px; background:var(--green-light); border-radius:50%; display:inline-block; animation:livepulse 1.5s ease-in-out infinite; }
+@keyframes livepulse { 0%{box-shadow:0 0 0 0 rgba(34,197,94,.4)} 70%{box-shadow:0 0 0 8px rgba(34,197,94,0)} 100%{box-shadow:0 0 0 0 rgba(34,197,94,0)} }
+.cnt-chip { background:var(--orange); color:white; font-size:.7rem; font-weight:700; padding:2px 9px; border-radius:20px; font-family:'Baloo Da 2',sans-serif; }
+
+.chips { display:flex; gap:8px; overflow-x:auto; scrollbar-width:none; margin-bottom:20px; padding-bottom:4px; }
+.chips::-webkit-scrollbar { display:none; }
+.chip { flex-shrink:0; padding:7px 16px; border:2px solid var(--border); border-radius:30px; background:white; font-family:'Baloo Da 2',sans-serif; font-size:.8rem; font-weight:600; cursor:pointer; transition:all .15s; color:var(--muted); white-space:nowrap; box-shadow:0 2px 6px rgba(0,0,0,.05); }
+.chip:hover { border-color:var(--orange); color:var(--orange); }
+.chip.on { background:var(--dark); color:white; border-color:var(--dark); }
+.chip.on.cf { background:var(--green); border-color:var(--green); }
+.chip.on.cp { background:var(--orange); border-color:var(--orange); }
+
+/* ===== CARD ===== */
+.spot-card { background:var(--card-bg); border-radius:20px; overflow:hidden; box-shadow:0 2px 12px rgba(0,0,0,.07),0 1px 3px rgba(0,0,0,.04); margin-bottom:16px; border:1px solid var(--border); transition:all .2s; animation:cardIn .35s ease both; }
+@keyframes cardIn { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
+.spot-card:hover { box-shadow:0 8px 30px rgba(0,0,0,.12); transform:translateY(-2px); }
+
+.card-body { padding:18px 18px 14px; }
+.card-top { display:flex; align-items:flex-start; justify-content:space-between; gap:10px; margin-bottom:8px; }
+.spot-ttl { font-family:'Baloo Da 2',sans-serif; font-weight:800; font-size:1.1rem; color:var(--dark); line-height:1.3; flex:1; }
+.tbadge { flex-shrink:0; padding:4px 12px; border-radius:30px; font-family:'Baloo Da 2',sans-serif; font-size:.7rem; font-weight:700; }
+.tbadge.free { background:#DCFCE7; color:var(--green); }
+.tbadge.paid { background:#FFF7ED; color:var(--orange-deep); }
+.tbadge.done { background:#F3F4F6; color:#9CA3AF; }
+
+.spot-food { font-size:.88rem; color:var(--dark2); font-weight:500; margin-bottom:5px; }
+.spot-desc { font-size:.83rem; color:var(--muted); line-height:1.5; margin-bottom:10px; }
+.meta-row { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:14px; }
+.mtag { display:inline-flex; align-items:center; gap:4px; font-size:.76rem; color:var(--muted); background:var(--cream); padding:3px 10px; border-radius:20px; }
+
+/* Inline map */
+.spot-map-wrap { height:165px; border-top:1px solid var(--border); position:relative; overflow:hidden; cursor:pointer; }
+.spot-map-wrap:hover .map-overlay-btn { background:var(--orange); color:white; border-color:var(--orange); }
+.map-tile { width:100%; height:100%; }
+.map-tile.static { pointer-events:none; }
+.spot-map-label { position:absolute; top:10px; left:10px; background:white; border-radius:10px; padding:4px 10px; font-size:.7rem; font-weight:700; font-family:'Baloo Da 2',sans-serif; color:var(--dark); border:1px solid var(--border); box-shadow:0 2px 6px rgba(0,0,0,.1); z-index:10; pointer-events:none; }
+.map-overlay-btn { position:absolute; bottom:10px; right:10px; background:white; border:1.5px solid var(--border); border-radius:20px; padding:5px 12px; font-size:.72rem; font-weight:700; font-family:'Baloo Da 2',sans-serif; color:var(--dark); box-shadow:0 2px 8px rgba(0,0,0,.1); pointer-events:none; z-index:10; transition:all .2s; }
+
+/* Vote row */
+.vote-row { padding:12px 16px; display:flex; align-items:center; gap:8px; border-top:1px solid var(--border); background:#FAFAF9; flex-wrap:wrap; }
+.vbtn { display:flex; align-items:center; gap:5px; padding:7px 16px; border-radius:30px; border:1.5px solid var(--border); background:white; font-family:'Baloo Da 2',sans-serif; font-weight:700; font-size:.82rem; cursor:pointer; transition:all .15s; color:var(--dark); box-shadow:0 1px 4px rgba(0,0,0,.06); }
+.vbtn:hover { transform:scale(1.04); }
+.vbtn:active { transform:scale(.97); }
+.vbtn.sv:hover,.vbtn.sv.on { background:#DCFCE7; border-color:var(--green); color:var(--green); }
+.vbtn.sv.on { background:var(--green); color:white; }
+.vbtn.bv:hover,.vbtn.bv.on { background:#FEE2E2; border-color:var(--red); color:var(--red); }
+.vbtn.bv.on { background:var(--red); color:white; }
+.cnum { background:rgba(0,0,0,.06); border-radius:10px; padding:1px 7px; font-size:.74rem; }
+.nav-btn { display:flex; align-items:center; gap:5px; padding:7px 14px; border-radius:20px; border:1.5px solid var(--border); background:white; font-family:'Baloo Da 2',sans-serif; font-size:.78rem; font-weight:700; cursor:pointer; color:#1D4ED8; text-decoration:none; box-shadow:0 1px 4px rgba(0,0,0,.06); transition:all .15s; }
+.nav-btn:hover { background:#EFF6FF; border-color:#1D4ED8; }
+.done-btn { margin-left:auto; padding:5px 12px; border-radius:20px; border:1.5px solid var(--border); background:transparent; font-size:.72rem; color:var(--muted); cursor:pointer; font-family:'Hind Siliguri',sans-serif; transition:all .15s; }
+.done-btn:hover { background:#F3F4F6; color:var(--dark); }
+
+/* Empty */
+.empty { text-align:center; padding:60px 20px; }
+.empty .ei { font-size:3.5rem; margin-bottom:12px; }
+.empty h3 { font-family:'Baloo Da 2',sans-serif; font-weight:800; font-size:1.1rem; margin-bottom:6px; }
+.empty p { font-size:.88rem; color:var(--muted); }
+
+/* FAB */
+.fab { position:fixed; bottom:24px; right:20px; background:var(--orange); color:white; border:none; border-radius:50px; padding:14px 22px; font-family:'Baloo Da 2',sans-serif; font-weight:800; font-size:.88rem; cursor:pointer; box-shadow:0 8px 24px rgba(249,115,22,.45); z-index:400; display:flex; align-items:center; gap:8px; transition:all .2s; white-space:nowrap; }
+.fab:hover { background:var(--orange-deep); box-shadow:0 12px 30px rgba(249,115,22,.55); transform:translateY(-2px); }
+
+/* Modal */
+.overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.65); backdrop-filter:blur(6px); z-index:900; align-items:flex-end; justify-content:center; }
+.overlay.on { display:flex; }
+@media(min-width:600px){.overlay.on{align-items:center;}}
+.modal { background:white; width:100%; max-width:520px; border-radius:24px 24px 0 0; max-height:92svh; overflow-y:auto; padding:8px 24px 32px; animation:slideUp .3s cubic-bezier(.34,1.56,.64,1); }
+@media(min-width:600px){.modal{border-radius:24px;animation:popIn .3s cubic-bezier(.34,1.56,.64,1);}}
+@keyframes slideUp { from{transform:translateY(100%)} to{transform:translateY(0)} }
+@keyframes popIn { from{opacity:0;transform:scale(.85)} to{opacity:1;transform:scale(1)} }
+.m-handle { width:36px; height:4px; background:var(--border); border-radius:4px; margin:12px auto 20px; }
+.m-title { font-family:'Baloo Da 2',sans-serif; font-weight:800; font-size:1.3rem; margin-bottom:20px; color:var(--dark); }
+.fg { margin-bottom:16px; }
+.fl { display:block; font-family:'Baloo Da 2',sans-serif; font-weight:700; font-size:.83rem; color:var(--dark2); margin-bottom:6px; }
+.fi,.fta { width:100%; padding:12px 14px; border:1.5px solid var(--border); border-radius:12px; font-family:'Hind Siliguri',sans-serif; font-size:.9rem; color:var(--dark); background:var(--warm-white); outline:none; transition:border-color .15s,box-shadow .15s; }
+.fi:focus,.fta:focus { border-color:var(--orange); box-shadow:0 0 0 3px rgba(249,115,22,.1); }
+.fta { min-height:72px; resize:vertical; }
+.rg { display:flex; gap:10px; }
+.ro { flex:1; position:relative; }
+.ro input { position:absolute; opacity:0; pointer-events:none; }
+.rl { display:flex; align-items:center; justify-content:center; gap:6px; padding:11px; border:2px solid var(--border); border-radius:12px; font-family:'Baloo Da 2',sans-serif; font-weight:700; font-size:.85rem; cursor:pointer; background:white; color:var(--muted); transition:all .15s; }
+.ro input:checked+.rl.rf { background:#DCFCE7; color:var(--green); border-color:var(--green); }
+.ro input:checked+.rl.rp { background:#FFF7ED; color:var(--orange-deep); border-color:var(--orange); }
+#add-map-el { height:180px; border:1.5px solid var(--border); border-radius:12px; overflow:hidden; }
+.sub-btn { width:100%; padding:14px; background:var(--orange); color:white; border:none; border-radius:14px; font-family:'Baloo Da 2',sans-serif; font-weight:800; font-size:1rem; cursor:pointer; margin-top:8px; box-shadow:0 4px 16px rgba(249,115,22,.3); transition:all .2s; }
+.sub-btn:hover { background:var(--orange-deep); box-shadow:0 6px 20px rgba(249,115,22,.4); transform:translateY(-1px); }
+
+/* Toast */
+.toast { position:fixed; bottom:90px; left:50%; transform:translateX(-50%) translateY(12px); background:var(--dark); color:white; padding:11px 22px; border-radius:30px; font-family:'Baloo Da 2',sans-serif; font-weight:700; font-size:.88rem; opacity:0; pointer-events:none; z-index:2000; transition:all .25s; white-space:nowrap; box-shadow:0 8px 24px rgba(0,0,0,.3); }
+.toast.on { opacity:1; transform:translateX(-50%) translateY(0); }
+
+/* Search hint pill */
+.search-hint-pill { display:none; align-items:center; gap:6px; background:rgba(249,115,22,.1); border:1px solid rgba(249,115,22,.28); border-radius:20px; padding:6px 14px; font-size:.76rem; font-family:'Baloo Da 2',sans-serif; color:var(--orange-deep); margin-bottom:12px; animation:fadeIn .2s ease; }
+.search-hint-pill.show { display:flex; }
+@keyframes fadeIn { from{opacity:0;transform:translateY(-4px)} to{opacity:1;transform:translateY(0)} }
+.hint-label { color:var(--muted); }
+.hint-terms { font-weight:700; }
+.hint-x { margin-left:auto; cursor:pointer; color:var(--muted); font-size:.9rem; background:none; border:none; padding:0 4px; border-radius:4px; }
+.hint-x:hover { color:var(--dark); }
+.no-result-banner { background:#FFF7ED; border:1px solid #FED7AA; border-radius:14px; padding:14px 18px; margin-bottom:16px; font-size:.88rem; color:var(--orange-deep); font-family:'Baloo Da 2',sans-serif; font-weight:600; }
+.no-result-banner span { font-weight:400; color:var(--muted); display:block; margin-top:3px; font-family:'Hind Siliguri',sans-serif; font-size:.82rem; }
+
+
+/* Firebase Setup Guide */
+.guide-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.7); backdrop-filter:blur(6px); z-index:1100; align-items:center; justify-content:center; padding:16px; }
+.guide-overlay.on { display:flex; }
+.guide-box { background:white; border-radius:20px; max-width:540px; width:100%; max-height:88svh; overflow-y:auto; padding:28px; box-shadow:0 24px 60px rgba(0,0,0,.3); }
+.guide-title { font-family:'Baloo Da 2',sans-serif; font-weight:800; font-size:1.3rem; margin-bottom:6px; }
+.guide-sub { font-size:.85rem; color:var(--muted); margin-bottom:20px; }
+.step { display:flex; gap:14px; margin-bottom:18px; align-items:flex-start; }
+.step-num { flex-shrink:0; width:30px; height:30px; background:var(--orange); color:white; border-radius:50%; display:flex; align-items:center; justify-content:center; font-family:'Baloo Da 2',sans-serif; font-weight:800; font-size:.9rem; }
+.step-body h4 { font-family:'Baloo Da 2',sans-serif; font-weight:700; font-size:.95rem; margin-bottom:3px; }
+.step-body p { font-size:.82rem; color:var(--muted); line-height:1.5; }
+.step-body a { color:var(--orange); font-weight:600; }
+.code-block { background:#1C1917; color:#FCD34D; border-radius:10px; padding:12px 14px; font-family:monospace; font-size:.78rem; line-height:1.6; margin-top:8px; overflow-x:auto; white-space:pre; }
+.rule-box { background:#DCFCE7; border:1px solid #86EFAC; border-radius:10px; padding:12px 14px; font-family:monospace; font-size:.76rem; line-height:1.6; margin-top:8px; color:#14532D; white-space:pre; }
+.guide-close { width:100%; padding:13px; background:var(--dark); color:white; border:none; border-radius:12px; font-family:'Baloo Da 2',sans-serif; font-weight:800; font-size:.95rem; cursor:pointer; margin-top:8px; }
+.setup-fab { position:fixed; bottom:24px; left:20px; background:white; border:2px solid var(--border); border-radius:50px; padding:10px 16px; font-family:'Baloo Da 2',sans-serif; font-weight:700; font-size:.78rem; cursor:pointer; box-shadow:0 4px 14px rgba(0,0,0,.1); z-index:400; color:var(--dark); transition:all .2s; display:flex; align-items:center; gap:6px; }
+.setup-fab:hover { box-shadow:0 6px 20px rgba(0,0,0,.15); transform:translateY(-1px); }
+.setup-fab .fb-dot { width:8px; height:8px; border-radius:50%; background:#F97316; }
+
+/* Leaflet */
+.leaflet-control-attribution { font-size:8px!important; }
+.leaflet-popup-content-wrapper { border-radius:12px!important; font-family:'Hind Siliguri',sans-serif; }
+</style>
+</head>
+<body>
+
+<!-- HERO -->
+<section class="hero" id="hero">
+  <div class="stars" id="stars"></div>
+  <div class="lantern-row">
+    <span class="lantern" style="--sw:3.5s;--sd:0s">🏮</span>
+    <span class="lantern" style="--sw:4s;--sd:.5s">🏮</span>
+    <span class="lantern" style="--sw:3.2s;--sd:1s">🏮</span>
+    <span class="lantern" style="--sw:4.5s;--sd:.3s">🏮</span>
+    <span class="lantern" style="--sw:3.8s;--sd:.8s">🏮</span>
+  </div>
+
+  <div class="moon-wrap">
+    <div class="moon-glow"></div>
+    <svg class="moon-svg" viewBox="0 0 100 100">
+      <defs>
+        <radialGradient id="mg" cx="35%" cy="35%">
+          <stop offset="0%" stop-color="#FDE68A"/>
+          <stop offset="100%" stop-color="#D97706"/>
+        </radialGradient>
+      </defs>
+      <circle cx="50" cy="50" r="42" fill="url(#mg)"/>
+      <circle cx="68" cy="38" r="32" fill="#0F2417"/>
+      <circle cx="18" cy="16" r="2" fill="#FDE68A" opacity=".9"/>
+      <circle cx="88" cy="24" r="1.5" fill="#FDE68A" opacity=".7"/>
+      <circle cx="10" cy="50" r="1.2" fill="#FDE68A" opacity=".6"/>
+    </svg>
+  </div>
+
+  <p class="hero-eyebrow">রমজান মাসের কমিউনিটি অ্যাপ</p>
+  <h1 class="hero-title">ইফতারে <span class="hl">ভালো খবর</span><br>কোই আছে?</h1>
+  <p class="hero-sub">আপনার এলাকার সেরা ইফতার স্পট খুঁজুন, শেয়ার করুন</p>
+
+  <div class="stats-bar">
+    <div class="stat-pill"><span class="icon">🍽️</span><span class="val" id="hs-total">0</span><span class="lbl">স্পট</span></div>
+    <div class="stat-pill"><span class="icon">🆓</span><span class="val" id="hs-free">0</span><span class="lbl">বিনামূল্যে</span></div>
+    <div class="stat-pill"><span class="icon">✅</span><span class="val" id="hs-ver">0</span><span class="lbl">যাচাইকৃত</span></div>
+  </div>
+
+  <div class="cdpill">
+    <span class="cdlbl">🌅 ইফতার পর্যন্ত</span>
+    <span class="cdtime" id="cd">--:--:--</span>
+  </div>
+
+  <div class="cta-group">
+    <div class="hero-search-wrap">
+      <span class="hero-search-icon">🔍</span>
+      <input class="hero-search" type="text" id="hs" placeholder="হালিম, বিরিয়ানি, মিরপুর..." autocomplete="off" oninput="onHeroSearch(this.value)" onfocus="onHeroSearch(this.value)">
+      <div class="suggestions" id="sg"></div>
+    </div>
+    <button class="explore-btn" onclick="scrollToFeed()">🗺️ সব ইফতার স্পট দেখুন</button>
+  </div>
+
+  <div class="scroll-hint"><span>স্ক্রল করুন</span><span class="arr">↓</span></div>
+</section>
+
+<!-- STICKY HEADER -->
+<div class="sticky-hdr" id="shdr">
+  <div class="sticky-in">
+    <span class="sticky-logo">🌙 ইফতার খবর</span>
+    <div class="sticky-sw">
+      <span class="sticky-si">🔍</span>
+      <input class="sticky-s" type="text" id="ss" placeholder="খুঁজুন..." oninput="syncQ(this.value)">
+    </div>
+    <button class="add-sticky" onclick="openModal()">+ যোগ করুন</button>
+  </div>
+</div>
+
+<!-- MAIN -->
+<main class="main" id="mc">
+  <div class="sec-hdr">
+    <div class="sec-ttl"><span class="live"></span>আজকের ইফতার স্পট<span class="cnt-chip" id="fc">0</span></div>
+  </div>
+  <div class="chips">
+    <button class="chip on" data-f="all" onclick="sf('all',this)">🍽️ সব</button>
+    <button class="chip cf" data-f="free" onclick="sf('free',this)">🆓 বিনা পয়সায়</button>
+    <button class="chip cp" data-f="paid" onclick="sf('paid',this)">💳 কেনা খাবার</button>
+    <button class="chip" data-f="active" onclick="sf('active',this)">✅ চলছে</button>
+    <button class="chip" data-f="hot" onclick="sf('hot',this)">🔥 জনপ্রিয়</button>
+  </div>
+  <!-- Translation hint -->
+  <div class="search-hint-pill" id="hint-pill">
+    <span class="hint-label">🔤 অনুবাদ:</span>
+    <span class="hint-terms" id="hint-terms"></span>
+    <button class="hint-x" onclick="clearSearch()">✕</button>
+  </div>
+  <div id="feed"></div>
+</main>
+
+<!-- FAB -->
+<button class="fab" onclick="openModal()">➕ ইফতার স্পট যোগ করুন</button>
+
+<!-- MODAL -->
+<div class="overlay" id="ov" onclick="ovClick(event)">
+  <div class="modal" id="mb">
+    <div class="m-handle"></div>
+    <div class="m-title">🍴 নতুন ইফতার স্পট যোগ করুন</div>
+    <div class="fg"><label class="fl">📌 জায়গার নাম / আয়োজক</label><input class="fi" id="fn" placeholder="যেমন: আসাদ গেট ফ্রি বিরিয়ানি"></div>
+    <div class="fg"><label class="fl">🍛 কী পরিবেশন করা হচ্ছে?</label><input class="fi" id="ff" placeholder="যেমন: তেহারি, খেজুর, শরবত"></div>
+    <div class="fg"><label class="fl">📍 ঠিকানা / এলাকা</label><input class="fi" id="fa" placeholder="যেমন: মিরপুর-১০, ঢাকা"></div>
+    <div class="fg"><label class="fl">💬 বিবরণ (ঐচ্ছিক)</label><textarea class="fta" id="fd" placeholder="কতজনের জন্য? কোন সময়?"></textarea></div>
+    <div class="fg">
+      <label class="fl">🏷️ ধরন</label>
+      <div class="rg">
+        <label class="ro"><input type="radio" name="ft" value="free" checked><div class="rl rf">🆓 বিনা পয়সায়</div></label>
+        <label class="ro"><input type="radio" name="ft" value="paid"><div class="rl rp">💳 কেনা খাবার</div></label>
+      </div>
+    </div>
+    <div class="fg">
+      <label class="fl">🗺️ মানচিত্রে লোকেশন সেট করুন</label>
+      <div id="add-map-el"></div>
+      <p style="font-size:.72rem;color:var(--muted);margin-top:5px;">মানচিত্রে ক্লিক বা পিন টেনে সঠিক জায়গা বেছে নিন</p>
+    </div>
+    <button class="sub-btn" onclick="submit()">✅ যোগ করুন ও শেয়ার করুন</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════════
+// 🔥 FIREBASE CONFIGURATION
+// Replace these values with your own Firebase project
+// ═══════════════════════════════════════════════════
+const FIREBASE_CONFIG = {
+  apiKey:            "AIzaSyArjwUXUDdZGlK-k_00OmoVRtI3v-BA1_Q",
+  authDomain:        "free-iftar-lagbe.firebaseapp.com",
+  projectId: "free-iftar-lagbe",
+  storageBucket: "free-iftar-lagbe.firebasestorage.app",
+  messagingSenderId: "236219096541",
+  appId: "1:236219096541:web:d44633a89675f1862f6a34",
+  measurementId: "G-Z4Q9TW2T4P"
+};
+
+// ═══════════════════════════════════════════════════
+// DB LAYER — auto-switches Firebase ↔ localStorage
+// Set USE_FIREBASE = true after you add your config
+// ═══════════════════════════════════════════════════
+const USE_FIREBASE = FIREBASE_CONFIG.apiKey !== "AIzaSyArjwUXUDdZGlK-k_00OmoVRtI3v-BA1_Q";
+let db = null;
+
+function initFirebase(){
+  if(!USE_FIREBASE) return;
+  try {
+    firebase.initializeApp(FIREBASE_CONFIG);
+    db = firebase.firestore();
+    // Enable offline persistence so it works without internet too
+    db.enablePersistence().catch(()=>{});
+    console.log("🔥 Firebase connected");
+  } catch(e){
+    console.warn("Firebase init failed, falling back to localStorage", e);
+  }
+}
+
+// STATE
+let spots=[], votes={}, q='', filter='all';
+let spotMaps={}, addMap=null, addMk=null;
+let newLat=23.8103, newLng=90.4125;
+let unsubscribe=null; // Firestore real-time listener handle
+
+// ─── localStorage fallback ───
+function lsLoad(){
+  try{ spots=JSON.parse(localStorage.getItem('ift_s3')||'[]'); votes=JSON.parse(localStorage.getItem('ift_v3')||'{}'); }catch(e){}
+}
+function lsSave(){
+  try{ localStorage.setItem('ift_s3',JSON.stringify(spots)); localStorage.setItem('ift_v3',JSON.stringify(votes)); }catch(e){}
+}
+function lsSaveVotes(){
+  try{ localStorage.setItem('ift_v3',JSON.stringify(votes)); }catch(e){}
+}
+
+// ─── Seed data (used for localStorage mode only) ───
+function seed(){
+  if(spots.length)return;
+  const n=Date.now();
+  spots=[
+    {id:'s1',title:'আসাদ গেট ফ্রি বিরিয়ানি',food:'বিরিয়ানি, খেজুর, শরবত, পেঁয়াজু',address:'আসাদ গেট, মিরপুর রোড, ঢাকা',desc:'৫০০ মানুষের জন্য ব্যবস্থা। মাগরিবের আধঘণ্টা আগে থেকে বিতরণ শুরু।',isFree:true,lat:23.773,lng:90.367,shotti:24,bhua:1,status:'active',at:n-3600000},
+    {id:'s2',title:'বাইতুল মোকাররম সদকাহ ইফতার',food:'তেহারি, মুরগি রোস্ট, ফিরনি, কোরমা',address:'বাইতুল মোকাররম মসজিদ, পল্টন, ঢাকা',desc:'মসজিদ কর্তৃপক্ষের আয়োজন। সবার জন্য উন্মুক্ত। মাগরিবের আগে সিরিয়াল নিন।',isFree:true,lat:23.724,lng:90.408,shotti:41,bhua:2,status:'active',at:n-5400000},
+    {id:'s3',title:'স্টার কাবাব ইফতার স্পেশাল',food:'জালি কাবাব, আফগানি চাপ, নান, শরবত',address:'স্টার কাবাব, বেগম বাজার, পুরান ঢাকা',desc:'রমজান স্পেশাল প্যাকেজ ৩৫০-৭০০ টাকা। আগে সিট বুক করুন।',isFree:false,lat:23.7104,lng:90.4074,shotti:15,bhua:0,status:'active',at:n-7200000},
+    {id:'s4',title:'গুলশান লেক পার্ক ফ্রি ইফতার',food:'খিচুড়ি, ডাল, আলু ভর্তা, মিষ্টি',address:'গুলশান-১ লেক পার্ক, ঢাকা',desc:'বেসরকারি উদ্যোগ। ২০০ মানুষের ব্যবস্থা।',isFree:true,lat:23.7801,lng:90.415,shotti:18,bhua:1,status:'active',at:n-1800000},
+    {id:'s5',title:'লালবাগের বিখ্যাত হালিম',food:'হালিম, পরোটা, জিলাপি, ছোলা',address:'লালবাগ কেল্লার পাশে, পুরান ঢাকা',desc:'রমজানের বিশেষ দাম। ৪ ঘণ্টা ধরে রান্না হালিম।',isFree:false,lat:23.7168,lng:90.3851,shotti:33,bhua:0,status:'active',at:n-900000},
+    {id:'s6',title:'মতিঝিল ইফতার বাজার',food:'পেঁয়াজু, বেগুনি, ছোলা, লেবুর শরবত',address:'মতিঝিল, ঢাকা',desc:'রাস্তার পাশে ইফতার বাজার।',isFree:false,lat:23.7337,lng:90.4192,shotti:7,bhua:2,status:'finished',at:n-86400000},
+  ];
+  lsSave();
+}
+
+// ─── Firebase real-time listener ───
+function startFirebaseListener(){
+  if(!db) return;
+  showConnectionStatus('connecting');
+  // Listen to all spots, ordered by createdAt descending
+  unsubscribe = db.collection('iftar_spots')
+    .orderBy('at','desc')
+    .limit(200)
+    .onSnapshot(snapshot => {
+      spots = snapshot.docs.map(doc => ({id: doc.id, ...doc.data()}));
+      // Sync votes from localStorage (votes are device-local for spam prevention)
+      try{ votes=JSON.parse(localStorage.getItem('ift_v3')||'{}'); }catch(e){}
+      renderFeed();
+      updateStats();
+      showConnectionStatus('live');
+    }, err => {
+      console.warn('Firestore error:', err);
+      showConnectionStatus('offline');
+    });
+}
+
+// ─── Add spot to Firebase or localStorage ───
+async function addSpotToDB(ns){
+  if(USE_FIREBASE && db){
+    try{
+      const docRef = await db.collection('iftar_spots').add(ns);
+      return docRef.id;
+    } catch(e){
+      console.warn('Firestore write failed, saving locally', e);
+      spots.unshift(ns); lsSave(); return ns.id;
+    }
+  } else {
+    spots.unshift(ns); lsSave(); return ns.id;
+  }
+}
+
+// ─── Update spot in Firebase or localStorage ───
+async function updateSpotInDB(id, changes){
+  if(USE_FIREBASE && db){
+    try{
+      await db.collection('iftar_spots').doc(id).update(changes);
+    } catch(e){
+      console.warn('Firestore update failed', e);
+      const s=spots.find(x=>x.id===id);
+      if(s){Object.assign(s,changes);lsSave();}
+    }
+  } else {
+    const s=spots.find(x=>x.id===id);
+    if(s){Object.assign(s,changes);lsSave();}
+  }
+}
+
+// ─── Connection status badge ───
+function showConnectionStatus(state){
+  let badge = document.getElementById('conn-badge');
+  if(!badge){
+    badge = document.createElement('div');
+    badge.id = 'conn-badge';
+    badge.style.cssText='position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:9999;font-family:Baloo Da 2,sans-serif;font-size:.72rem;font-weight:700;padding:5px 14px;border-radius:20px;pointer-events:none;transition:all .3s;';
+    document.body.appendChild(badge);
+  }
+  if(state==='live'){
+    badge.style.cssText+=';background:#DCFCE7;color:#16A34A;border:1px solid #86EFAC;';
+    badge.innerHTML='🔴 লাইভ — সবার সাথে সংযুক্ত';
+    setTimeout(()=>{badge.style.opacity='0';},3000);
+    setTimeout(()=>{badge.remove();},3400);
+  } else if(state==='connecting'){
+    badge.style.cssText+=';background:#FFF7ED;color:#F97316;border:1px solid #FED7AA;opacity:1;';
+    badge.innerHTML='⏳ সংযুক্ত হচ্ছে...';
+  } else {
+    badge.style.cssText+=';background:#FEE2E2;color:#DC2626;border:1px solid #FCA5A5;opacity:1;';
+    badge.innerHTML='📴 অফলাইন মোড (শুধু আপনার ডিভাইসে)';
+    setTimeout(()=>{badge.style.opacity='0';},5000);
+  }
+}
+
+// COUNTDOWN
+function getMag(){const n=new Date(),t=new Date(n);t.setHours(18,10,0,0);if(n>t)t.setDate(t.getDate()+1);return t;}
+function tick(){
+  const d=Math.max(0,getMag()-Date.now());
+  const h=String(~~(d/3600000)).padStart(2,'0'),m=String(~~(d%3600000/60000)).padStart(2,'0'),s=String(~~(d%60000/1000)).padStart(2,'0');
+  document.getElementById('cd').textContent=`${h}:${m}:${s}`;
+}
+setInterval(tick,1000); tick();
+
+// HERO STATS
+function updateStats(){
+  document.getElementById('hs-total').textContent=spots.length;
+  document.getElementById('hs-free').textContent=spots.filter(s=>s.isFree&&s.status==='active').length;
+  document.getElementById('hs-ver').textContent=spots.filter(s=>s.shotti>5).length;
+}
+
+// STARS
+function buildStars(){
+  const c=document.getElementById('stars');
+  for(let i=0;i<80;i++){
+    const el=document.createElement('div'); el.className='star';
+    const sz=Math.random()*2.5+.5;
+    el.style.cssText=`width:${sz}px;height:${sz}px;top:${Math.random()*100}%;left:${Math.random()*100}%;--dur:${2+Math.random()*4}s;--delay:${Math.random()*5}s;`;
+    c.appendChild(el);
+  }
+}
+
+// STICKY
+function setupScroll(){
+  const obs=new IntersectionObserver(([e])=>document.getElementById('shdr').classList.toggle('on',!e.isIntersecting),{threshold:.1});
+  obs.observe(document.getElementById('hero'));
+}
+
+function scrollToFeed(){document.getElementById('mc').scrollIntoView({behavior:'smooth'});}
+
+// =====================================================
+// 🔍 SMART BILINGUAL SEARCH ENGINE
+// English → Bangla dictionary + phonetic transliteration
+// =====================================================
+
+// Complete food/place dictionary: english key → array of bangla equivalents
+const EN_BN_DICT = {
+  // Foods
+  biryani:['বিরিয়ানি','বিরানি'],
+  biriyani:['বিরিয়ানি'],
+  rice:['ভাত','খিচুড়ি'],
+  khichuri:['খিচুড়ি'],
+  khichdi:['খিচুড়ি'],
+  halim:['হালিম'],
+  halem:['হালিম'],
+  kabab:['কাবাব'],
+  kebab:['কাবাব'],
+  kababr:['কাবাব'],
+  jali:['জালি'],
+  tehari:['তেহারি'],
+  tehri:['তেহারি'],
+  roast:['রোস্ট'],
+  korma:['কোরমা'],
+  kurma:['কোরমা'],
+  firni:['ফিরনি'],
+  phirni:['ফিরনি'],
+  mishti:['মিষ্টি'],
+  meetha:['মিষ্টি'],
+  sweet:['মিষ্টি'],
+  jilapi:['জিলাপি'],
+  jalebi:['জিলাপি'],
+  chhola:['ছোলা'],
+  chola:['ছোলা'],
+  chick:['ছোলা'],
+  dal:['ডাল'],
+  daal:['ডাল'],
+  lentil:['ডাল'],
+  khejur:['খেজুর'],
+  khajur:['খেজুর'],
+  date:['খেজুর'],
+  dates:['খেজুর'],
+  shorbot:['শরবত'],
+  sharbat:['শরবত'],
+  sharbath:['শরবত'],
+  juice:['শরবত','জুস'],
+  drink:['শরবত'],
+  naan:['নান'],
+  nan:['নান'],
+  paratha:['পরোটা'],
+  porota:['পরোটা'],
+  roti:['রুটি'],
+  peyaju:['পেঁয়াজু'],
+  piyaju:['পেঁয়াজু'],
+  onion:['পেঁয়াজু'],
+  begun:['বেগুনি'],
+  beguni:['বেগুনি'],
+  brinjal:['বেগুনি'],
+  eggplant:['বেগুনি'],
+  murgi:['মুরগি'],
+  chicken:['মুরগি','চিকেন'],
+  murgir:['মুরগি'],
+  mutton:['মাটন'],
+  beef:['গরু'],
+  goru:['গরু'],
+  fish:['মাছ'],
+  mach:['মাছ'],
+  aloo:['আলু'],
+  potato:['আলু'],
+  bhaji:['ভাজি','ভর্তা'],
+  vorta:['ভর্তা'],
+  bhorta:['ভর্তা'],
+  chatni:['চাটনি'],
+  afghani:['আফগানি'],
+  chap:['চাপ'],
+  lemon:['লেবু'],
+  lebu:['লেবু'],
+  // Types
+  free:['বিনা পয়সায়','ফ্রি','বিনামূল্যে','সদকাহ','সদকা'],
+  ফ্রি:['বিনা পয়সায়','ফ্রি'],
+  sadaqah:['সদকাহ','ফ্রি'],
+  sadaka:['সদকাহ'],
+  paid:['কেনা','কেনা খাবার'],
+  // Areas - Dhaka
+  mirpur:['মিরপুর'],
+  asad:['আসাদ'],
+  asadgate:['আসাদ গেট'],
+  gulshan:['গুলশান'],
+  banani:['বনানী'],
+  dhanmondi:['ধানমন্ডি'],
+  uttara:['উত্তরা'],
+  motijheel:['মতিঝিল'],
+  motijhil:['মতিঝিল'],
+  old:['পুরান','পুরনো'],
+  puran:['পুরান ঢাকা'],
+  dhaka:['ঢাকা'],
+  paltan:['পল্টন'],
+  lalbaug:['লালবাগ'],
+  lalbagh:['লালবাগ'],
+  mohammadpur:['মোহাম্মদপুর'],
+  badda:['বাড্ডা'],
+  rampura:['রামপুরা'],
+  khilgaon:['খিলগাঁও'],
+  tejgaon:['তেজগাঁও'],
+  farmgate:['ফার্মগেট'],
+  shahbag:['শাহবাগ'],
+  newmarket:['নিউমার্কেট'],
+  ramna:['রমনা'],
+  wari:['ওয়ারী'],
+  shyamoli:['শ্যামলী'],
+  adabor:['আদাবর'],
+  mohakhali:['মহাখালী'],
+  airport:['এয়ারপোর্ট'],
+  khulna:['খুলনা'],
+  chittagong:['চট্টগ্রাম'],
+  sylhet:['সিলেট'],
+  rajshahi:['রাজশাহী'],
+  cumilla:['কুমিল্লা'],
+  comilla:['কুমিল্লা'],
+  // Mosque / event types
+  mosque:['মসজিদ'],
+  masjid:['মসজিদ'],
+  baitul:['বাইতুল'],
+  mokarram:['মোকাররম'],
+  // General
+  restaurant:['রেস্তোরাঁ','রেস্টুরেন্ট'],
+  hotel:['হোটেল'],
+  iftar:['ইফতার'],
+  iftaar:['ইফতার'],
+  sehri:['সেহরি'],
+  ramadan:['রমজান'],
+  community:['কমিউনিটি'],
+  star:['স্টার'],
+  bazaar:['বাজার'],
+  bazar:['বাজার'],
+  park:['পার্ক'],
+  lake:['লেক'],
+};
+
+// Phonetic similarity map for common Bengali transliteration variations
+// Maps regex patterns to what they could mean
+const PHONETIC_RULES = [
+  [/kh/g,'খ'],[/gh/g,'ঘ'],[/ch/g,'চ'],[/jh/g,'ঝ'],
+  [/th/g,'ঠ'],[/dh/g,'ধ'],[/ph/g,'ফ'],[/bh/g,'ভ'],
+  [/sh/g,'শ'],[/^b/,'ব'],[/^d/,'দ'],[/^g/,'গ'],
+  [/^j/,'জ'],[/^k/,'ক'],[/^m/,'ম'],[/^n/,'ন'],
+  [/^p/,'প'],[/^r/,'র'],[/^s/,'স'],[/^t/,'ত'],
+];
+
+// Expand a query into all possible bangla search terms
+function expandQuery(raw) {
+  const q = raw.toLowerCase().trim();
+  if (!q) return [];
+
+  const terms = new Set([q]); // always include original
+
+  // 1. Direct dictionary lookup (full query)
+  const dictHits = EN_BN_DICT[q];
+  if (dictHits) dictHits.forEach(t => terms.add(t));
+
+  // 2. Split multi-word query and look up each word
+  q.split(/[\s,]+/).forEach(word => {
+    if (!word) return;
+    terms.add(word);
+    const hits = EN_BN_DICT[word];
+    if (hits) hits.forEach(t => terms.add(t));
+
+    // 3. Partial key match — if user types "bir", match "biryani"
+    Object.entries(EN_BN_DICT).forEach(([key, vals]) => {
+      if (key.startsWith(word) || word.startsWith(key.slice(0, Math.min(3, key.length)))) {
+        vals.forEach(t => terms.add(t));
+      }
+    });
+
+    // 4. Phonetic: strip trailing vowels and try again
+    const stripped = word.replace(/[aeiou]+$/i, '');
+    if (stripped !== word && stripped.length >= 2) {
+      const h2 = EN_BN_DICT[stripped];
+      if (h2) h2.forEach(t => terms.add(t));
+      // Also try partial match on stripped
+      Object.entries(EN_BN_DICT).forEach(([key, vals]) => {
+        if (key.startsWith(stripped) || stripped.startsWith(key.slice(0,3))) {
+          vals.forEach(t => terms.add(t));
+        }
+      });
+    }
+  });
+
+  return [...terms];
+}
+
+// Core match function — returns {match, score, matchedTerms}
+function smartMatch(spotText, rawQuery) {
+  if (!rawQuery || !rawQuery.trim()) return {match: true, score: 0, terms: []};
+
+  const haystack = spotText.toLowerCase();
+  const terms = expandQuery(rawQuery);
+  let bestScore = 0;
+  const matched = [];
+
+  for (const term of terms) {
+    const t = term.toLowerCase();
+    if (!t) continue;
+
+    // Exact substring
+    if (haystack.includes(t)) {
+      const score = t.length * 10 + (haystack.indexOf(t) === 0 ? 5 : 0);
+      bestScore = Math.max(bestScore, score);
+      matched.push(term);
+      continue;
+    }
+
+    // Partial: first 3+ chars match
+    if (t.length >= 3) {
+      const partial = t.slice(0, Math.ceil(t.length * 0.6));
+      if (haystack.includes(partial)) {
+        bestScore = Math.max(bestScore, partial.length * 4);
+        matched.push(term + '*');
+        continue;
+      }
+    }
+
+    // Fuzzy char sequence (for typos)
+    if (t.length >= 3) {
+      let qi = 0;
+      for (let ci = 0; ci < haystack.length && qi < t.length; ci++) {
+        if (haystack[ci] === t[qi]) qi++;
+      }
+      if (qi === t.length) {
+        bestScore = Math.max(bestScore, qi * 2);
+        matched.push('~' + term);
+      }
+    }
+  }
+
+  return {match: bestScore > 0, score: bestScore, terms: matched};
+}
+
+function spotMatch(s, rawQ) {
+  if (!rawQ) return true;
+  const text = [s.title, s.food||'', s.address||'', s.desc||''].join(' ');
+  return smartMatch(text, rawQ).match;
+}
+
+// Highlight: find any of the expanded terms in the text
+function hilight(txt, rawQ) {
+  if (!rawQ) return txt;
+  const terms = expandQuery(rawQ).sort((a,b) => b.length - a.length);
+  let result = txt;
+  for (const term of terms) {
+    const t = term.replace(/[~*]/g,'');
+    if (!t || t.length < 2) continue;
+    const idx = result.toLowerCase().indexOf(t.toLowerCase());
+    if (idx >= 0) {
+      return result.slice(0,idx) + `<span class="hmatch">${result.slice(idx, idx+t.length)}</span>` + result.slice(idx+t.length);
+    }
+  }
+  return txt;
+}
+
+// Show what the search translated to
+function getSearchHint(rawQ) {
+  if (!rawQ || !rawQ.trim()) return null;
+  const expanded = expandQuery(rawQ).filter(t => t !== rawQ.toLowerCase() && /[\u0980-\u09FF]/.test(t));
+  if (!expanded.length) return null;
+  return expanded.slice(0,4).join(', ');
+}
+
+function onHeroSearch(val){
+  q=val;
+  updateHintPill(val);
+  const box=document.getElementById('sg');
+  if(!val.trim()){box.classList.remove('show');return;}
+  const m=spots.filter(s=>spotMatch(s,val)).slice(0,6);
+  if(!m.length){
+    // Show "no match" hint in suggestions
+    const hint=getSearchHint(val);
+    box.innerHTML=`<div class="sug-item" style="color:var(--muted);cursor:default;">
+      <span>🔍</span>
+      <span class="sug-name" style="font-weight:400;">কোনো মিল পাওয়া যায়নি</span>
+      ${hint?`<span class="sug-area">${hint} খোঁজা হয়েছে</span>`:''}
+    </div>`;
+    box.classList.add('show');
+    return;
+  }
+  box.innerHTML=m.map(s=>`<div class="sug-item" onclick="pickSug('${s.id}')">
+    <span>${s.isFree?'🆓':'🍽️'}</span>
+    <span class="sug-name">${hilight(s.title,val)}</span>
+    <span class="sug-area">${s.address.split(',')[0]}</span>
+    <span class="sug-badge ${s.isFree?'free':'paid'}">${s.isFree?'ফ্রি':'কেনা'}</span>
+  </div>`).join('');
+  box.classList.add('show');
+}
+
+function updateHintPill(rawQ){
+  const pill=document.getElementById('hint-pill');
+  const terms=document.getElementById('hint-terms');
+  const hint=getSearchHint(rawQ);
+  if(hint&&rawQ.trim()){
+    terms.textContent=hint;
+    pill.classList.add('show');
+  } else {
+    pill.classList.remove('show');
+  }
+}
+
+function clearSearch(){
+  q='';
+  document.getElementById('ss').value='';
+  document.getElementById('hs').value='';
+  document.getElementById('hint-pill').classList.remove('show');
+  renderFeed();
+}
+
+function pickSug(id){
+  document.getElementById('sg').classList.remove('show');
+  scrollToFeed();
+  q='';
+  setTimeout(()=>{
+    const c=document.getElementById('card-'+id);
+    if(c)c.scrollIntoView({behavior:'smooth',block:'center'});
+  },500);
+}
+
+document.addEventListener('click',e=>{
+  if(!e.target.closest('.hero-search-wrap'))document.getElementById('sg').classList.remove('show');
+});
+
+function syncQ(val){
+  q=val;
+  updateHintPill(val);
+  renderFeed();
+}
+
+// FILTER
+function sf(f,btn){
+  filter=f;
+  document.querySelectorAll('.chip').forEach(c=>c.classList.remove('on'));
+  btn.classList.add('on');
+  renderFeed();
+}
+
+function getFiltered(){
+  return spots.filter(s=>{
+    const sm=spotMatch(s,q);
+    let fm=true;
+    if(filter==='free')fm=s.isFree;
+    else if(filter==='paid')fm=!s.isFree;
+    else if(filter==='active')fm=s.status==='active';
+    else if(filter==='hot')fm=s.shotti>=10;
+    return sm&&fm;
+  }).sort((a,b)=>{
+    const sa=a.shotti-a.bhua*1.5+(a.status==='active'?20:0);
+    const sb=b.shotti-b.bhua*1.5+(b.status==='active'?20:0);
+    return sb-sa;
+  });
+}
+
+// RENDER
+function renderFeed(){
+  const feed=document.getElementById('feed');
+  const list=getFiltered();
+  document.getElementById('fc').textContent=list.length;
+  updateHintPill(q);
+  if(!list.length){
+    const hint=getSearchHint(q);
+    const banner=q?`<div class="no-result-banner">
+      🔍 "${q}" এর জন্য কোনো ইফতার স্পট পাওয়া যায়নি
+      ${hint?`<span>খোঁজা হয়েছে: ${hint}</span>`:''}
+    </div>`:'';
+    feed.innerHTML=banner+`<div class="empty"><div class="ei">🌙</div><h3>কোনো স্পট পাওয়া যায়নি</h3><p>প্রথম স্পট যোগ করে সাহায্য করুন!</p></div>`;
+    return;
+  }
+  feed.innerHTML=list.map((s,i)=>buildCard(s,i)).join('');
+  list.forEach(s=>{if(s.lat&&s.lng)initMap(s);});
+}
+
+function buildCard(s,i){
+  if(s.bhua>s.shotti*2.5&&s.bhua>8)return '';
+  const v=votes[s.id];
+  const diff=Date.now()-s.at;
+  const ago=diff<60000?'এইমাত্র':diff<3600000?~~(diff/60000)+' মি. আগে':diff<86400000?~~(diff/3600000)+' ঘ. আগে':~~(diff/86400000)+' দিন আগে';
+  const bc=s.status==='finished'?'done':s.isFree?'free':'paid';
+  const bt=s.status==='finished'?'🚫 শেষ':s.isFree?'🆓 বিনা পয়সায়':'💳 কেনা';
+  const mu=`https://www.google.com/maps/search/?api=1&query=${s.lat},${s.lng}`;
+  return `<div class="spot-card" id="card-${s.id}" style="animation-delay:${i*.06}s">
+    <div class="card-body">
+      <div class="card-top">
+        <div class="spot-ttl">${s.title}</div>
+        <span class="tbadge ${bc}">${bt}</span>
+      </div>
+      ${s.food?`<div class="spot-food">🍴 ${s.food}</div>`:''}
+      ${s.desc?`<div class="spot-desc">${s.desc}</div>`:''}
+      <div class="meta-row">
+        <span class="mtag">📍 ${s.address}</span>
+        <span class="mtag">🕐 ${ago}</span>
+        ${s.shotti>=10?`<span class="mtag">🔥 জনপ্রিয়</span>`:''}
+      </div>
+    </div>
+    ${s.lat&&s.lng?`
+    <div class="spot-map-wrap" onclick="window.open('${mu}','_blank')">
+      <div class="spot-map-label">📍 ${s.address.split(',')[0]}</div>
+      <div class="map-tile static" id="map-${s.id}"></div>
+      <div class="map-overlay-btn">🗺️ গুগল ম্যাপে খুলুন</div>
+    </div>`:''}
+    <div class="vote-row">
+      <button class="vbtn sv ${v==='shotti'?'on':''}" onclick="vote('${s.id}','shotti')">✅ শত্তি <span class="cnum">${s.shotti}</span></button>
+      <button class="vbtn bv ${v==='bhua'?'on':''}" onclick="vote('${s.id}','bhua')">❌ ভুয়া <span class="cnum">${s.bhua}</span></button>
+      <a class="nav-btn" href="${mu}" target="_blank" onclick="event.stopPropagation()">🧭 যান</a>
+      ${s.status!=='finished'?`<button class="done-btn" onclick="markDone('${s.id}')">🚫 শেষ</button>`:''}
+    </div>
+  </div>`;
+}
+
+// SPOT MAP
+function initMap(s){
+  const el=document.getElementById('map-'+s.id);
+  if(!el||spotMaps[s.id])return;
+  const m=L.map(el,{center:[s.lat,s.lng],zoom:15,zoomControl:false,scrollWheelZoom:false,dragging:false,doubleClickZoom:false,keyboard:false,touchZoom:false,attributionControl:false});
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(m);
+  const col=s.isFree?'#16A34A':'#F97316';
+  const ico=L.divIcon({html:`<div style="background:${col};border:3px solid white;border-radius:50%;width:24px;height:24px;box-shadow:0 3px 10px rgba(0,0,0,.3);display:flex;align-items:center;justify-content:center;font-size:11px;">${s.isFree?'🆓':'💳'}</div>`,className:'',iconSize:[24,24],iconAnchor:[12,12]});
+  L.marker([s.lat,s.lng],{icon:ico}).addTo(m);
+  spotMaps[s.id]=m;
+}
+
+// VOTING
+async function vote(id,type){
+  const s=spots.find(x=>x.id===id); if(!s)return;
+  const prev=votes[id];
+  let changes={};
+  if(prev===type){
+    if(type==='shotti') changes={shotti: Math.max(0,s.shotti-1)};
+    else changes={bhua: Math.max(0,s.bhua-1)};
+    delete votes[id]; toast('ভোট বাতিল হয়েছে');
+  } else {
+    let newShotti=s.shotti, newBhua=s.bhua;
+    if(prev==='shotti') newShotti=Math.max(0,newShotti-1);
+    if(prev==='bhua') newBhua=Math.max(0,newBhua-1);
+    if(type==='shotti'){newShotti++;toast('✅ শত্তি! ভোট দেওয়া হয়েছে');}
+    else{newBhua++;toast('❌ ভুয়া বলে রিপোর্ট করা হয়েছে');}
+    changes={shotti:newShotti, bhua:newBhua};
+    votes[id]=type;
+  }
+  // Always save vote record locally (per-device spam prevention)
+  lsSaveVotes();
+  // Apply optimistic UI update
+  if(spotMaps[id]){spotMaps[id].remove();delete spotMaps[id];}
+  Object.assign(s, changes);
+  renderFeed(); updateStats();
+  // Persist to DB
+  await updateSpotInDB(id, changes);
+}
+
+async function markDone(id){
+  const s=spots.find(x=>x.id===id); if(!s)return;
+  if(spotMaps[id]){spotMaps[id].remove();delete spotMaps[id];}
+  s.status='finished';
+  renderFeed();
+  toast('🚫 শেষ হিসেবে চিহ্নিত করা হয়েছে');
+  await updateSpotInDB(id, {status:'finished'});
+}
+
+// MODAL
+function openModal(){
+  document.getElementById('ov').classList.add('on');
+  setTimeout(()=>{
+    if(!addMap){
+      addMap=L.map('add-map-el').setView([23.8103,90.4125],13);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attributionControl:false}).addTo(addMap);
+      addMk=L.marker([23.8103,90.4125],{draggable:true}).addTo(addMap);
+      addMk.on('dragend',e=>{const p=e.target.getLatLng();newLat=p.lat;newLng=p.lng;});
+      addMap.on('click',e=>{newLat=e.latlng.lat;newLng=e.latlng.lng;addMk.setLatLng(e.latlng);});
+    }
+    addMap.invalidateSize();
+  },150);
+}
+function closeModal(){document.getElementById('ov').classList.remove('on');}
+function ovClick(e){if(e.target===document.getElementById('ov'))closeModal();}
+
+async function submit(){
+  const name=document.getElementById('fn').value.trim();
+  const food=document.getElementById('ff').value.trim();
+  const addr=document.getElementById('fa').value.trim();
+  const desc=document.getElementById('fd').value.trim();
+  const isFree=document.querySelector('input[name="ft"]:checked')?.value==='free';
+  if(!name){toast('⚠️ জায়গার নাম দিন!');return;}
+  if(!addr){toast('⚠️ ঠিকানা দিন!');return;}
+
+  const subBtn=document.querySelector('.sub-btn');
+  subBtn.textContent='⏳ যোগ করা হচ্ছে...';
+  subBtn.disabled=true;
+
+  const ns={
+    title:name, food, address:addr, desc, isFree,
+    lat:newLat, lng:newLng,
+    shotti:1, bhua:0, status:'active',
+    at:Date.now(),
+    // Store a temp local id — Firestore will give real id
+    id:'u'+Date.now()
+  };
+
+  votes[ns.id]='shotti';
+  lsSaveVotes();
+  closeModal();
+  toast('🎉 স্পট যোগ হচ্ছে...');
+
+  const realId = await addSpotToDB(ns);
+  votes[realId]='shotti';
+  if(realId!==ns.id) delete votes[ns.id];
+  lsSaveVotes();
+
+  if(!USE_FIREBASE){ renderFeed(); updateStats(); }
+  toast('🎉 স্পট যোগ হয়েছে! সবাই দেখতে পাচ্ছে! ধন্যবাদ!');
+
+  subBtn.textContent='✅ যোগ করুন ও শেয়ার করুন';
+  subBtn.disabled=false;
+  ['fn','ff','fa','fd'].forEach(id=>document.getElementById(id).value='');
+}
+
+// TOAST
+function toast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('on');
+  clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove('on'),2800);
+}
+
+// ═══════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════
+buildStars();
+setupScroll();
+initFirebase();
+
+if(USE_FIREBASE && db){
+  // Firebase mode: real-time listener populates spots[]
+  // Load votes from localStorage for this device
+  try{ votes=JSON.parse(localStorage.getItem('ift_v3')||'{}'); }catch(e){}
+  startFirebaseListener();
+} else {
+  // localStorage mode: load + seed demo data
+  lsLoad();
+  seed();
+  renderFeed();
+  updateStats();
+  // Show offline notice on first load
+  setTimeout(()=>{
+    const b=document.createElement('div');
+    b.style.cssText='position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#FFF7ED;border:1.5px solid #FED7AA;border-radius:14px;padding:12px 20px;font-family:Baloo Da 2,sans-serif;font-size:.8rem;color:#92400E;font-weight:600;z-index:3000;text-align:center;box-shadow:0 4px 16px rgba(0,0,0,.1);max-width:320px;';
+    b.innerHTML='⚠️ <b>ডেমো মোড</b><br><span style="font-weight:400;font-size:.75rem;">Firebase সেটআপ না থাকায় ডেটা শুধু এই ডিভাইসে। নিচের গাইড দেখুন।</span>';
+    document.body.appendChild(b);
+    setTimeout(()=>b.remove(), 8000);
+  }, 1500);
+}
+</script>
+
+
+</body>
+</html>
