@@ -196,7 +196,24 @@ body { font-family: 'Hind Siliguri', sans-serif; background: var(--cream); color
 .rl { display:flex; align-items:center; justify-content:center; gap:6px; padding:11px; border:2px solid var(--border); border-radius:12px; font-family:'Baloo Da 2',sans-serif; font-weight:700; font-size:.85rem; cursor:pointer; background:white; color:var(--muted); transition:all .15s; }
 .ro input:checked+.rl.rf { background:#DCFCE7; color:var(--green); border-color:var(--green); }
 .ro input:checked+.rl.rp { background:#FFF7ED; color:var(--orange-deep); border-color:var(--orange); }
-#add-map-el { height:180px; border:1.5px solid var(--border); border-radius:12px; overflow:hidden; }
+#add-map-el { height:220px; border-radius:0 0 12px 12px; overflow:hidden; }
+.map-search-wrap { position:relative; margin-bottom:0; }
+.map-search-box { width:100%; padding:11px 14px 11px 40px; border:1.5px solid var(--border); border-radius:12px 12px 0 0; border-bottom:1px solid #eee; font-family:'Hind Siliguri',sans-serif; font-size:.88rem; color:var(--dark); background:white; outline:none; transition:border-color .15s; }
+.map-search-box:focus { border-color:var(--orange); box-shadow:0 0 0 3px rgba(249,115,22,.08); }
+.map-search-box::placeholder { color:#bbb; }
+.map-s-icon { position:absolute; left:13px; top:50%; transform:translateY(-50%); font-size:.95rem; pointer-events:none; }
+.map-s-spinner { position:absolute; right:12px; top:50%; transform:translateY(-50%); font-size:.85rem; display:none; animation:spin 1s linear infinite; }
+@keyframes spin { to { transform:translateY(-50%) rotate(360deg); } }
+.map-results { position:absolute; top:100%; left:0; right:0; background:white; border:1.5px solid var(--orange); border-top:none; border-radius:0 0 12px 12px; z-index:2000; max-height:190px; overflow-y:auto; display:none; box-shadow:0 8px 24px rgba(0,0,0,.15); }
+.map-results.show { display:block; }
+.mr-item { padding:10px 14px; cursor:pointer; font-size:.84rem; color:var(--dark); border-bottom:1px solid var(--border); display:flex; align-items:flex-start; gap:9px; transition:background .1s; }
+.mr-item:last-child { border-bottom:none; }
+.mr-item:hover { background:#FFF7ED; }
+.mr-icon { font-size:1rem; flex-shrink:0; margin-top:2px; }
+.mr-name { font-weight:600; line-height:1.3; }
+.mr-sub { font-size:.73rem; color:var(--muted); margin-top:2px; }
+.mr-msg { padding:11px 14px; font-size:.82rem; color:var(--muted); text-align:center; }
+.map-outer { border:1.5px solid var(--border); border-radius:12px; overflow:hidden; }
 .sub-btn { width:100%; padding:14px; background:var(--orange); color:white; border:none; border-radius:14px; font-family:'Baloo Da 2',sans-serif; font-weight:800; font-size:1rem; cursor:pointer; margin-top:8px; box-shadow:0 4px 16px rgba(249,115,22,.3); transition:all .2s; }
 .sub-btn:hover { background:var(--orange-deep); box-shadow:0 6px 20px rgba(249,115,22,.4); transform:translateY(-1px); }
 
@@ -350,8 +367,25 @@ body { font-family: 'Hind Siliguri', sans-serif; background: var(--cream); color
     </div>
     <div class="fg">
       <label class="fl">🗺️ মানচিত্রে লোকেশন সেট করুন</label>
-      <div id="add-map-el"></div>
-      <p style="font-size:.72rem;color:var(--muted);margin-top:5px;">মানচিত্রে ক্লিক বা পিন টেনে সঠিক জায়গা বেছে নিন</p>
+      <div class="map-outer">
+        <!-- Location search bar -->
+        <div class="map-search-wrap" id="map-search-wrap">
+          <span class="map-s-icon">📍</span>
+          <input
+            class="map-search-box"
+            id="map-search-input"
+            type="text"
+            placeholder="এলাকা বা জায়গার নাম লিখুন... যেমন: মিরপুর, গুলশান"
+            autocomplete="off"
+            oninput="onMapSearch(this.value)"
+          >
+          <span class="map-s-spinner" id="map-s-spinner">⏳</span>
+          <div class="map-results" id="map-results"></div>
+        </div>
+        <!-- Map -->
+        <div id="add-map-el"></div>
+      </div>
+      <p style="font-size:.72rem;color:var(--muted);margin-top:6px;">🔍 উপরে টাইপ করে জায়গা খুঁজুন, অথবা ম্যাপে সরাসরি ক্লিক করুন বা পিন টেনে নিয়ে যান</p>
     </div>
     <button class="sub-btn" onclick="submit()">✅ যোগ করুন ও শেয়ার করুন</button>
   </div>
@@ -999,6 +1033,178 @@ async function markDone(id){
   await updateSpotInDB(id, {status:'finished'});
 }
 
+// ═══════════════════════════════════════════════
+// 📍 MAP LOCATION SEARCH (Nominatim / OpenStreetMap)
+// Free, no API key needed
+// ═══════════════════════════════════════════════
+let mapSearchTimer = null;
+let lastMapQuery = '';
+
+function onMapSearch(val) {
+  const results = document.getElementById('map-results');
+  const spinner = document.getElementById('map-s-spinner');
+
+  val = val.trim();
+  if (!val || val === lastMapQuery) {
+    if (!val) results.classList.remove('show');
+    return;
+  }
+  lastMapQuery = val;
+
+  // Debounce — wait 450ms after user stops typing
+  clearTimeout(mapSearchTimer);
+  spinner.style.display = 'block';
+
+  mapSearchTimer = setTimeout(async () => {
+    try {
+      await geocodeSearch(val);
+    } catch(e) {
+      spinner.style.display = 'none';
+      results.innerHTML = '<div class="mr-msg">❌ সার্চ করা সম্ভব হয়নি। আবার চেষ্টা করুন।</div>';
+      results.classList.add('show');
+    }
+  }, 450);
+}
+
+async function geocodeSearch(query) {
+  const results = document.getElementById('map-results');
+  const spinner = document.getElementById('map-s-spinner');
+
+  // Bias search toward Bangladesh
+  const url = `https://nominatim.openstreetmap.org/search?` +
+    `q=${encodeURIComponent(query + ' Bangladesh')}&` +
+    `format=json&limit=6&addressdetails=1&` +
+    `countrycodes=bd&` +
+    `accept-language=bn,en`;
+
+  const res = await fetch(url, {
+    headers: { 'Accept-Language': 'bn,en' }
+  });
+  const data = await res.json();
+  spinner.style.display = 'none';
+
+  if (!data.length) {
+    // Try without Bangladesh constraint for broader results
+    const res2 = await fetch(
+      `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=5&addressdetails=1`,
+      { headers: { 'Accept-Language': 'bn,en' } }
+    );
+    const data2 = await res2.json();
+    if (!data2.length) {
+      results.innerHTML = '<div class="mr-msg">🔍 কোনো জায়গা পাওয়া যায়নি। অন্যভাবে লিখে চেষ্টা করুন।</div>';
+      results.classList.add('show');
+      return;
+    }
+    renderMapResults(data2);
+    return;
+  }
+  renderMapResults(data);
+}
+
+function renderMapResults(places) {
+  const results = document.getElementById('map-results');
+
+  results.innerHTML = places.map((p, i) => {
+    // Build a clean display name
+    const addr = p.address || {};
+    const mainName = p.namedetails?.name ||
+      addr.road || addr.neighbourhood || addr.suburb ||
+      addr.city_district || p.display_name.split(',')[0];
+
+    const subParts = [
+      addr.suburb || addr.neighbourhood || addr.city_district,
+      addr.city || addr.town || addr.county,
+      addr.state_district || addr.state
+    ].filter(Boolean).slice(0, 2);
+
+    const sub = subParts.join(', ') || p.display_name.split(',').slice(1,3).join(',').trim();
+
+    const typeIcon = getPlaceIcon(p.type, p.class);
+
+    return `<div class="mr-item" onclick="selectMapPlace(${p.lat}, ${p.lon}, '${escQ(mainName)}', '${escQ(sub)}')">
+      <span class="mr-icon">${typeIcon}</span>
+      <div>
+        <div class="mr-name">${mainName}</div>
+        <div class="mr-sub">${sub}</div>
+      </div>
+    </div>`;
+  }).join('');
+
+  results.classList.add('show');
+}
+
+function getPlaceIcon(type, cls) {
+  if (cls === 'amenity') {
+    if (type === 'restaurant' || type === 'cafe' || type === 'fast_food') return '🍽️';
+    if (type === 'mosque' || type === 'place_of_worship') return '🕌';
+    if (type === 'hospital' || type === 'clinic') return '🏥';
+    if (type === 'school' || type === 'university') return '🏫';
+    if (type === 'park') return '🌳';
+    return '📍';
+  }
+  if (cls === 'highway') return '🛣️';
+  if (cls === 'railway') return '🚉';
+  if (type === 'residential' || type === 'neighbourhood') return '🏘️';
+  if (type === 'city' || type === 'town' || type === 'village') return '🏙️';
+  if (type === 'administrative') return '📍';
+  return '📍';
+}
+
+function escQ(str) {
+  return (str || '').replace(/'/g, "\'").replace(/"/g, '\"');
+}
+
+function selectMapPlace(lat, lng, name, area) {
+  lat = parseFloat(lat);
+  lng = parseFloat(lng);
+  newLat = lat;
+  newLng = lng;
+
+  // Move marker and zoom map
+  if (addMk) addMk.setLatLng([lat, lng]);
+  if (addMap) addMap.setView([lat, lng], 16, { animate: true });
+
+  // Fill address field if empty
+  const addrField = document.getElementById('fa');
+  if (!addrField.value.trim()) {
+    addrField.value = [name, area].filter(Boolean).join(', ');
+  }
+
+  // Update search input to show selected place
+  document.getElementById('map-search-input').value = name + (area ? ', ' + area : '');
+
+  // Close results
+  document.getElementById('map-results').classList.remove('show');
+
+  // Visual confirmation pulse on marker
+  if (addMk) {
+    const el = addMk.getElement();
+    if (el) {
+      el.style.transition = 'transform .3s cubic-bezier(.34,1.56,.64,1)';
+      el.style.transform = 'scale(1.6)';
+      setTimeout(() => { el.style.transform = 'scale(1)'; }, 350);
+    }
+  }
+
+  toast('📍 লোকেশন সেট হয়েছে: ' + name);
+}
+
+// Close map results on outside click
+document.addEventListener('click', e => {
+  if (!e.target.closest('#map-search-wrap')) {
+    const r = document.getElementById('map-results');
+    if (r) r.classList.remove('show');
+  }
+});
+
+// Allow Enter key to trigger search
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    const r = document.getElementById('map-results');
+    if (r) r.classList.remove('show');
+  }
+});
+
 // MODAL
 function openModal(){
   document.getElementById('ov').classList.add('on');
@@ -1013,7 +1219,15 @@ function openModal(){
     addMap.invalidateSize();
   },150);
 }
-function closeModal(){document.getElementById('ov').classList.remove('on');}
+function closeModal(){
+  document.getElementById('ov').classList.remove('on');
+  // Reset map search
+  const si = document.getElementById('map-search-input');
+  const sr = document.getElementById('map-results');
+  if(si) si.value='';
+  if(sr) sr.classList.remove('show');
+  lastMapQuery='';
+}
 function ovClick(e){if(e.target===document.getElementById('ov'))closeModal();}
 
 async function submit(){
